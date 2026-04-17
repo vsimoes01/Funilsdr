@@ -1,0 +1,538 @@
+import { useState, useEffect, useRef } from "react";
+
+const COLORS = {
+  bgPrincipal: "#0D1520",
+  bgNav: "#111B2B",
+  bgCards: "#162032",
+  bgLinhas: "#1C2A3E",
+  bgHover: "#253349",
+  bgInput: "#0F1C2D",
+  accentPrimario: "#1A6CFF",
+  accentBotao: "#1560E8",
+  accentLinks: "#4D9FFF",
+  accentBadge: "#00C853",
+  accentNotif: "#E53935",
+  accentBordas: "#1E3250",
+  tipTitulos: "#FFFFFF",
+  tipCorpo: "#E2EAF4",
+  tipLabels: "#7A90AA",
+  tipCabecTabela: "#5B7490",
+};
+
+const FASES = [
+  { id: 1, label: "Origem", icon: "📡" },
+  { id: 2, label: "Lead", icon: "👤" },
+  { id: 3, label: "Conta", icon: "🏢" },
+  { id: 4, label: "Portfólio & QI", icon: "📊" },
+  { id: 5, label: "Vincular Carteira", icon: "🔗" },
+  { id: 6, label: "Etapa do Funil", icon: "🎯" },
+];
+
+const ORIGENS = [
+  "Forms de Cotações",
+  "Fale conosco - Site",
+  "Telefone 0800",
+  "Instagram",
+  "LinkedIn",
+  "Outros Canais",
+];
+
+const PORTFOLIO_ITEMS = [
+  { key: "uniformesProfissionais", label: "Uniformes Profissionais", meta: "1000 peças" },
+  { key: "uniformesCorporativos", label: "Uniformes Corporativos", meta: "200 peças" },
+  { key: "vestimentasProtecao", label: "Vestimentas de Proteção", meta: "200 peças" },
+  { key: "epis", label: "EPI's", meta: "Variado" },
+  { key: "revenda", label: "Revenda", meta: "Variado" },
+];
+
+const ETAPAS_FUNIL = [
+  { key: "dados_iniciais", label: "Dados Iniciais", color: "#1A6CFF" },
+  { key: "primeiro_contato", label: "Primeiro Contato", color: "#4D9FFF" },
+  { key: "segundo_contato", label: "Segundo Contato", color: "#00C853" },
+  { key: "enriquecimento", label: "Enriquecimento de Dados", color: "#FF9800" },
+  { key: "destino", label: "Destino", color: "#E53935" },
+];
+
+function calcQI(data) {
+  let score = 0;
+  let total = 0;
+  total += 10;
+  if (data.origem) score += 10;
+  total += 30;
+  if (data.nomeLead) score += 6;
+  if (data.cargo) score += 5;
+  if (data.email) score += 5;
+  if (data.fone || data.celular) score += 5;
+  if (data.origemDetalhe) score += 4;
+  if (data.salesNavigatorLead) score += 5;
+  total += 30;
+  if (data.nomeConta) score += 8;
+  if (data.cnpj) score += 8;
+  if (data.companyPage) score += 4;
+  if (data.faixaColaboradores) score += 5;
+  if (data.salesNavigatorConta) score += 5;
+  total += 20;
+  const portCount = PORTFOLIO_ITEMS.filter(
+    (p) => data.portfolio && data.portfolio[p.key] && data.portfolio[p.key].checked
+  ).length;
+  score += Math.min(20, portCount * 5);
+  total += 10;
+  if (data.etapaFunil) score += 10;
+  return Math.round((score / total) * 100);
+}
+
+function InputField({ label, value, onChange, placeholder, type = "text" }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: COLORS.tipLabels, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.5px", fontFamily: "'Outfit', sans-serif" }}>
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder || ""}
+        style={{ width: "100%", padding: "10px 14px", background: COLORS.bgInput, border: `1px solid ${COLORS.accentBordas}`, borderRadius: 8, color: COLORS.tipCorpo, fontSize: 14, fontFamily: "'Outfit', sans-serif", outline: "none", transition: "border-color 0.2s", boxSizing: "border-box" }}
+        onFocus={(e) => (e.target.style.borderColor = COLORS.accentPrimario)}
+        onBlur={(e) => (e.target.style.borderColor = COLORS.accentBordas)}
+      />
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options, placeholder }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: COLORS.tipLabels, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.5px", fontFamily: "'Outfit', sans-serif" }}>
+        {label}
+      </label>
+      <select
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ width: "100%", padding: "10px 14px", background: COLORS.bgInput, border: `1px solid ${COLORS.accentBordas}`, borderRadius: 8, color: value ? COLORS.tipCorpo : COLORS.tipLabels, fontSize: 14, fontFamily: "'Outfit', sans-serif", outline: "none", cursor: "pointer", boxSizing: "border-box", appearance: "none", backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237A90AA' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}
+      >
+        <option value="" style={{ color: COLORS.tipLabels }}>{placeholder || "Selecionar..."}</option>
+        {options.map((opt) => (
+          <option key={typeof opt === "string" ? opt : opt.value} value={typeof opt === "string" ? opt : opt.value} style={{ color: COLORS.tipCorpo, background: COLORS.bgCards }}>
+            {typeof opt === "string" ? opt : opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// Radar 8 Logo - SVG faithful to uploaded brand
+function Radar8Logo() {
+  return (
+    <svg width="140" height="36" viewBox="0 0 420 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* R */}
+      <path d="M0 88V12h30c16 0 26 9 26 22 0 11-7 19-17 22l20 32h-18L24 58H16v30H0zM16 44h12c8 0 13-5 13-11s-5-10-13-10H16v21z" fill="white"/>
+      {/* A */}
+      <path d="M74 88L100 12h12l26 76h-16l-5-18H95l-5 18H74zm24-30h20l-10-36-10 36z" fill="white"/>
+      {/* D */}
+      <path d="M150 88V12h24c24 0 40 16 40 38s-16 38-40 38h-24zm16-14h8c16 0 24-10 24-24s-8-24-24-24h-8v48z" fill="white"/>
+      {/* A */}
+      <path d="M234 88L260 12h12l26 76h-16l-5-18h-22l-5 18h-16zm24-30h20l-10-36-10 36z" fill="white"/>
+      {/* R */}
+      <path d="M320 88V12h30c16 0 26 9 26 22 0 11-7 19-17 22l20 32h-18l-17-30h-8v30h-16zm16-44h12c8 0 13-5 13-11s-5-10-13-10h-12v21z" fill="white"/>
+      {/* Cyan circle */}
+      <circle cx="400" cy="50" r="30" fill="#4DD9FF"/>
+      {/* Signal waves */}
+      <path d="M426 24c10 10 16 22 16 26" stroke="#4DD9FF" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.6"/>
+      <path d="M430 18c14 14 20 28 20 32" stroke="#4DD9FF" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.35"/>
+      <path d="M426 76c10-10 16-22 16-26" stroke="#4DD9FF" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.6"/>
+      <path d="M430 82c14-14 20-28 20-32" stroke="#4DD9FF" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.35"/>
+      {/* Number 8 */}
+      <text x="400" y="62" textAnchor="middle" fontSize="42" fontWeight="900" fontFamily="'Outfit', sans-serif" fill="#0D1520">8</text>
+    </svg>
+  );
+}
+
+// AI Icon with sparkle gradient
+function AIIcon({ onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg, #1A6CFF 0%, #4D9FFF 50%, #00C853 100%)", transition: "transform 0.2s, box-shadow 0.2s", boxShadow: "0 0 12px rgba(26,108,255,0.3)" }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.12)"; e.currentTarget.style.boxShadow = "0 0 20px rgba(26,108,255,0.5)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 0 12px rgba(26,108,255,0.3)"; }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="white" />
+        <path d="M19 2L19.8 4.2L22 5L19.8 5.8L19 8L18.2 5.8L16 5L18.2 4.2L19 2Z" fill="white" opacity="0.6" />
+      </svg>
+    </div>
+  );
+}
+
+// Phase 1
+function FaseOrigem({ data, setData }) {
+  return (
+    <div>
+      <h3 style={{ color: COLORS.tipTitulos, fontSize: 18, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>📡 Origem do Lead</h3>
+      <p style={{ color: COLORS.tipLabels, fontSize: 13, marginBottom: 20, fontFamily: "'Outfit', sans-serif" }}>Como esse lead chegou até nós?</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+        {ORIGENS.map((o) => (
+          <button key={o} onClick={() => setData({ ...data, origem: o, origemDetalhe: "" })} style={{ padding: "14px 16px", background: data.origem === o ? COLORS.accentPrimario : COLORS.bgInput, border: `1px solid ${data.origem === o ? COLORS.accentPrimario : COLORS.accentBordas}`, borderRadius: 10, color: data.origem === o ? "#fff" : COLORS.tipCorpo, fontSize: 13, fontWeight: data.origem === o ? 700 : 500, cursor: "pointer", transition: "all 0.2s", fontFamily: "'Outfit', sans-serif", textAlign: "left" }}>
+            {o === "Instagram" && "📸 "}{o === "LinkedIn" && "💼 "}{o === "Telefone 0800" && "📞 "}{o === "Fale conosco - Site" && "🌐 "}{o === "Forms de Cotações" && "📋 "}{o === "Outros Canais" && "📬 "}{o}
+          </button>
+        ))}
+      </div>
+      {data.origem === "Instagram" && <div style={{ animation: "fadeIn 0.3s ease" }}><InputField label="@ do Instagram" value={data.origemDetalhe} onChange={(v) => setData({ ...data, origemDetalhe: v })} placeholder="@empresa" /></div>}
+      {data.origem === "LinkedIn" && <div style={{ animation: "fadeIn 0.3s ease" }}><InputField label="URL do Perfil LinkedIn" value={data.origemDetalhe} onChange={(v) => setData({ ...data, origemDetalhe: v })} placeholder="https://linkedin.com/in/..." /></div>}
+      {data.origem === "Telefone 0800" && <div style={{ animation: "fadeIn 0.3s ease" }}><InputField label="Número que ligou" value={data.origemDetalhe} onChange={(v) => setData({ ...data, origemDetalhe: v })} placeholder="(00) 00000-0000" /></div>}
+      {(data.origem === "Fale conosco - Site" || data.origem === "Forms de Cotações") && <div style={{ animation: "fadeIn 0.3s ease" }}><InputField label="Referência do formulário" value={data.origemDetalhe} onChange={(v) => setData({ ...data, origemDetalhe: v })} placeholder="Página ou formulário específico" /></div>}
+      {data.origem === "Outros Canais" && <div style={{ animation: "fadeIn 0.3s ease" }}><InputField label="Qual canal?" value={data.origemDetalhe} onChange={(v) => setData({ ...data, origemDetalhe: v })} placeholder="Descreva o canal de origem" /></div>}
+    </div>
+  );
+}
+
+// Phase 2
+function FaseLead({ data, setData }) {
+  const needsSales = data.origem === "LinkedIn";
+  return (
+    <div>
+      <h3 style={{ color: COLORS.tipTitulos, fontSize: 18, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>👤 Dados do Lead</h3>
+      <p style={{ color: COLORS.tipLabels, fontSize: 13, marginBottom: 20, fontFamily: "'Outfit', sans-serif" }}>Informações de contato e perfil do lead.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <InputField label="Nome do Lead" value={data.nomeLead} onChange={(v) => setData({ ...data, nomeLead: v })} placeholder="Nome completo" />
+        <InputField label="Cargo" value={data.cargo} onChange={(v) => setData({ ...data, cargo: v })} placeholder="Ex: Gerente de Compras" />
+        <InputField label="E-mail" value={data.email} onChange={(v) => setData({ ...data, email: v })} placeholder="email@empresa.com" type="email" />
+        <InputField label="Telefone" value={data.fone} onChange={(v) => setData({ ...data, fone: v })} placeholder="(00) 0000-0000" />
+        <InputField label="Celular" value={data.celular} onChange={(v) => setData({ ...data, celular: v })} placeholder="(00) 00000-0000" />
+        {data.origem === "Instagram" && <InputField label="Instagram do Lead" value={data.instagramLead} onChange={(v) => setData({ ...data, instagramLead: v })} placeholder="@perfil" />}
+      </div>
+      {needsSales && (
+        <div style={{ marginTop: 12, padding: 16, background: COLORS.bgLinhas, borderRadius: 10, border: `1px solid ${COLORS.accentBordas}` }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.accentLinks, marginBottom: 12, fontFamily: "'Outfit', sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>💼 Sales Navigator — Lead</div>
+          <InputField label="Link Sales Navigator do Lead" value={data.salesNavigatorLead} onChange={(v) => setData({ ...data, salesNavigatorLead: v })} placeholder="https://www.linkedin.com/sales/lead/..." />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Phase 3
+function FaseConta({ data, setData }) {
+  const needsSales = data.origem === "LinkedIn";
+  return (
+    <div>
+      <h3 style={{ color: COLORS.tipTitulos, fontSize: 18, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>🏢 Dados da Conta</h3>
+      <p style={{ color: COLORS.tipLabels, fontSize: 13, marginBottom: 20, fontFamily: "'Outfit', sans-serif" }}>Informações da empresa / conta do lead.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <InputField label="Nome da Conta" value={data.nomeConta} onChange={(v) => setData({ ...data, nomeConta: v })} placeholder="Razão Social ou Fantasia" />
+        <InputField label="CNPJ" value={data.cnpj} onChange={(v) => setData({ ...data, cnpj: v })} placeholder="00.000.000/0000-00" />
+        <InputField label="Company Page" value={data.companyPage} onChange={(v) => setData({ ...data, companyPage: v })} placeholder="URL da página" />
+        <InputField label="Instagram da Empresa" value={data.instagramConta} onChange={(v) => setData({ ...data, instagramConta: v })} placeholder="@empresa" />
+        <InputField label="YouTube" value={data.youtube} onChange={(v) => setData({ ...data, youtube: v })} placeholder="URL do canal" />
+        <SelectField label="Faixa de Colaboradores" value={data.faixaColaboradores} onChange={(v) => setData({ ...data, faixaColaboradores: v })} options={["1-50", "51-200", "201-500", "501-1000", "1001-5000", "5000+"]} placeholder="Selecionar faixa..." />
+        <InputField label="Cidade" value={data.cidade} onChange={(v) => setData({ ...data, cidade: v })} placeholder="Cidade" />
+        <InputField label="Estado" value={data.estado} onChange={(v) => setData({ ...data, estado: v })} placeholder="UF" />
+      </div>
+      {needsSales && (
+        <div style={{ marginTop: 12, padding: 16, background: COLORS.bgLinhas, borderRadius: 10, border: `1px solid ${COLORS.accentBordas}` }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.accentLinks, marginBottom: 12, fontFamily: "'Outfit', sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>💼 Sales Navigator — Conta</div>
+          <InputField label="Link Sales Navigator da Conta" value={data.salesNavigatorConta} onChange={(v) => setData({ ...data, salesNavigatorConta: v })} placeholder="https://www.linkedin.com/sales/company/..." />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Phase 4
+function FasePortfolio({ data, setData }) {
+  const portfolio = data.portfolio || {};
+  const toggleItem = (key) => { const u = { ...portfolio }; if (!u[key]) u[key] = { checked: false, expectativa: "" }; u[key] = { ...u[key], checked: !u[key].checked }; setData({ ...data, portfolio: u }); };
+  const setExp = (key, val) => { const u = { ...portfolio }; if (!u[key]) u[key] = { checked: true, expectativa: "" }; u[key] = { ...u[key], expectativa: val }; setData({ ...data, portfolio: u }); };
+  return (
+    <div>
+      <h3 style={{ color: COLORS.tipTitulos, fontSize: 18, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>📊 Portfólio & QI-Score</h3>
+      <p style={{ color: COLORS.tipLabels, fontSize: 13, marginBottom: 20, fontFamily: "'Outfit', sans-serif" }}>Selecione os itens do portfólio e a expectativa de consumo anual.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {PORTFOLIO_ITEMS.map((item) => {
+          const isC = portfolio[item.key]?.checked;
+          return (
+            <div key={item.key} style={{ background: isC ? COLORS.bgLinhas : COLORS.bgInput, border: `1px solid ${isC ? COLORS.accentPrimario : COLORS.accentBordas}`, borderRadius: 10, padding: "12px 16px", transition: "all 0.2s" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div onClick={() => toggleItem(item.key)} style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${isC ? COLORS.accentBadge : COLORS.accentBordas}`, background: isC ? COLORS.accentBadge : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}>
+                  {isC && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: COLORS.tipCorpo, fontSize: 14, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{item.label}</div>
+                  <div style={{ color: COLORS.tipLabels, fontSize: 11, fontFamily: "'Outfit', sans-serif" }}>{item.meta}</div>
+                </div>
+                {isC && <div style={{ width: 140 }}><input type="number" placeholder="Qtd. anual" value={portfolio[item.key]?.expectativa || ""} onChange={(e) => setExp(item.key, e.target.value)} style={{ width: "100%", padding: "6px 10px", background: COLORS.bgInput, border: `1px solid ${COLORS.accentBordas}`, borderRadius: 6, color: COLORS.tipCorpo, fontSize: 13, fontFamily: "'Outfit', sans-serif", outline: "none", boxSizing: "border-box" }} /></div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Phase 5: Vincular Carteira
+function FaseVincularCarteira({ data, setData }) {
+  const [buscaTipo, setBuscaTipo] = useState("cnpj");
+  const [buscaValor, setBuscaValor] = useState("");
+  const [resultado, setResultado] = useState(null);
+  const [buscando, setBuscando] = useState(false);
+
+  const handleBusca = () => {
+    setBuscando(true);
+    setTimeout(() => {
+      if (buscaValor.length > 3) {
+        setResultado({ encontrado: Math.random() > 0.5, representante: "Carlos Mendes", carteira: "Carteira SP Interior", status: "Ativo" });
+      } else {
+        setResultado({ encontrado: false });
+      }
+      setBuscando(false);
+    }, 1200);
+  };
+
+  return (
+    <div>
+      <h3 style={{ color: COLORS.tipTitulos, fontSize: 18, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>🔗 Vincular Carteira</h3>
+      <p style={{ color: COLORS.tipLabels, fontSize: 13, marginBottom: 20, fontFamily: "'Outfit', sans-serif" }}>Pesquise se a empresa já está cadastrada e vincule o lead a uma carteira com representante existente.</p>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        {[{ key: "cnpj", label: "Por CNPJ" }, { key: "referencia", label: "Por Referência" }].map((t) => (
+          <button key={t.key} onClick={() => { setBuscaTipo(t.key); setResultado(null); setBuscaValor(""); }} style={{ padding: "10px 20px", background: buscaTipo === t.key ? COLORS.accentPrimario : COLORS.bgInput, border: `1px solid ${buscaTipo === t.key ? COLORS.accentPrimario : COLORS.accentBordas}`, borderRadius: 8, color: buscaTipo === t.key ? "#fff" : COLORS.tipCorpo, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Outfit', sans-serif" }}>{t.label}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+        <div style={{ flex: 1 }}><InputField label={buscaTipo === "cnpj" ? "CNPJ da Empresa" : "Nome / Referência"} value={buscaValor} onChange={setBuscaValor} placeholder={buscaTipo === "cnpj" ? "00.000.000/0000-00" : "Nome fantasia ou código"} /></div>
+        <button onClick={handleBusca} disabled={buscando || buscaValor.length < 3} style={{ padding: "10px 24px", background: buscando || buscaValor.length < 3 ? COLORS.bgHover : COLORS.accentBotao, border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: buscando || buscaValor.length < 3 ? "not-allowed" : "pointer", fontFamily: "'Outfit', sans-serif", marginBottom: 14, height: 42, whiteSpace: "nowrap" }}>{buscando ? "Buscando..." : "Consultar"}</button>
+      </div>
+      {resultado && (
+        <div style={{ marginTop: 8, padding: 16, background: resultado.encontrado ? "rgba(0,200,83,0.08)" : "rgba(229,57,53,0.08)", border: `1px solid ${resultado.encontrado ? COLORS.accentBadge : COLORS.accentNotif}`, borderRadius: 10, animation: "fadeIn 0.3s ease" }}>
+          {resultado.encontrado ? (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: COLORS.accentBadge }} />
+                <span style={{ color: COLORS.accentBadge, fontWeight: 700, fontSize: 14, fontFamily: "'Outfit', sans-serif" }}>Empresa encontrada — Representante vinculado</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <div><div style={{ fontSize: 11, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif" }}>Representante</div><div style={{ fontSize: 14, color: COLORS.tipCorpo, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{resultado.representante}</div></div>
+                <div><div style={{ fontSize: 11, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif" }}>Carteira</div><div style={{ fontSize: 14, color: COLORS.tipCorpo, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{resultado.carteira}</div></div>
+                <div><div style={{ fontSize: 11, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif" }}>Status</div><div style={{ fontSize: 14, color: COLORS.accentBadge, fontWeight: 600, fontFamily: "'Outfit', sans-serif" }}>{resultado.status}</div></div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: COLORS.accentNotif }} />
+              <span style={{ color: COLORS.accentNotif, fontWeight: 700, fontSize: 14, fontFamily: "'Outfit', sans-serif" }}>Nenhum registro encontrado — Lead sem carteira vinculada</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Phase 6
+function FaseEtapaFunil({ data, setData }) {
+  return (
+    <div>
+      <h3 style={{ color: COLORS.tipTitulos, fontSize: 18, fontWeight: 700, marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>🎯 Etapa do Funil</h3>
+      <p style={{ color: COLORS.tipLabels, fontSize: 13, marginBottom: 20, fontFamily: "'Outfit', sans-serif" }}>Para qual etapa do funil este lead será encaminhado?</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {ETAPAS_FUNIL.map((etapa) => (
+          <button key={etapa.key} onClick={() => setData({ ...data, etapaFunil: etapa.key })} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", background: data.etapaFunil === etapa.key ? `${etapa.color}18` : COLORS.bgInput, border: `2px solid ${data.etapaFunil === etapa.key ? etapa.color : COLORS.accentBordas}`, borderRadius: 12, cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+            <div style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${data.etapaFunil === etapa.key ? etapa.color : COLORS.tipLabels}`, background: data.etapaFunil === etapa.key ? etapa.color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s" }}>
+              {data.etapaFunil === etapa.key && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />}
+            </div>
+            <div><div style={{ color: data.etapaFunil === etapa.key ? etapa.color : COLORS.tipCorpo, fontSize: 15, fontWeight: 700, fontFamily: "'Outfit', sans-serif" }}>{etapa.label}</div></div>
+          </button>
+        ))}
+      </div>
+      {data.etapaFunil && <div style={{ marginTop: 16 }}><InputField label="Observações sobre o encaminhamento" value={data.obsEtapa} onChange={(v) => setData({ ...data, obsEtapa: v })} placeholder="Notas para a próxima etapa..." /></div>}
+    </div>
+  );
+}
+
+function QIRing({ score }) {
+  const c = 2 * Math.PI * 42;
+  const o = c - (score / 100) * c;
+  const color = score < 30 ? COLORS.accentNotif : score < 60 ? "#FF9800" : score < 85 ? COLORS.accentPrimario : COLORS.accentBadge;
+  return (
+    <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto" }}>
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="42" fill="none" stroke={COLORS.accentBordas} strokeWidth="6" />
+        <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="6" strokeDasharray={c} strokeDashoffset={o} strokeLinecap="round" transform="rotate(-90 50 50)" style={{ transition: "stroke-dashoffset 0.6s ease, stroke 0.3s ease" }} />
+      </svg>
+      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color, fontFamily: "'Outfit', sans-serif", lineHeight: 1 }}>{score}</div>
+        <div style={{ fontSize: 10, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif" }}>QI</div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewRow({ label, value, sub, isLink }) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 10, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif" }}>{label}</div>
+      <div style={{ fontSize: 13, color: isLink ? COLORS.accentLinks : COLORS.tipCorpo, fontWeight: 600, fontFamily: "'Outfit', sans-serif", wordBreak: "break-all" }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif" }}>{sub}</div>}
+    </div>
+  );
+}
+
+function PreviewPanel({ data }) {
+  const qi = calcQI(data);
+  const etapaInfo = ETAPAS_FUNIL.find((e) => e.key === data.etapaFunil);
+  const [showAI, setShowAI] = useState(false);
+
+  return (
+    <div style={{ background: COLORS.bgCards, borderRadius: 16, border: `1px solid ${COLORS.accentBordas}`, padding: 20, height: "fit-content", position: "sticky", top: 20 }}>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.tipLabels, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Outfit', sans-serif" }}>QI da Qualificação</div>
+          <AIIcon onClick={() => setShowAI(!showAI)} />
+        </div>
+        <QIRing score={qi} />
+        {showAI && (
+          <div style={{ marginTop: 12, padding: 14, background: "linear-gradient(135deg, rgba(26,108,255,0.12) 0%, rgba(0,200,83,0.08) 100%)", border: `1px solid ${COLORS.accentPrimario}40`, borderRadius: 10, animation: "fadeIn 0.3s ease", position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill={COLORS.accentLinks} /></svg>
+              <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.accentLinks, fontFamily: "'Outfit', sans-serif", textTransform: "uppercase", letterSpacing: "0.5px" }}>Inteligência Artificial</span>
+            </div>
+            <p style={{ fontSize: 12, color: COLORS.tipCorpo, fontFamily: "'Outfit', sans-serif", lineHeight: 1.5, margin: 0, textAlign: "left" }}>Aqui será gerado informações complementares sugestivas de prospecção e segmento que o Lead poderá ser destinado.</p>
+            <button onClick={() => setShowAI(false)} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", color: COLORS.tipLabels, cursor: "pointer", fontSize: 14, fontFamily: "'Outfit', sans-serif", padding: 0, lineHeight: 1 }}>×</button>
+          </div>
+        )}
+      </div>
+      <div style={{ borderTop: `1px solid ${COLORS.accentBordas}`, paddingTop: 14, marginTop: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.tipLabels, textTransform: "uppercase", marginBottom: 10, fontFamily: "'Outfit', sans-serif" }}>Prévia</div>
+        {data.origem && <PreviewRow label="Origem" value={data.origem} sub={data.origemDetalhe} />}
+        {data.nomeLead && <PreviewRow label="Lead" value={data.nomeLead} sub={data.cargo} />}
+        {data.email && <PreviewRow label="E-mail" value={data.email} />}
+        {(data.fone || data.celular) && <PreviewRow label="Telefone" value={data.fone || data.celular} />}
+        {data.instagramLead && <PreviewRow label="Instagram Lead" value={data.instagramLead} />}
+        {data.salesNavigatorLead && <PreviewRow label="Sales Nav. Lead" value="✓ Vinculado" isLink />}
+        {data.nomeConta && <PreviewRow label="Conta" value={data.nomeConta} sub={data.cnpj} />}
+        {data.faixaColaboradores && <PreviewRow label="Colaboradores" value={data.faixaColaboradores} />}
+        {data.salesNavigatorConta && <PreviewRow label="Sales Nav. Conta" value="✓ Vinculado" isLink />}
+        {data.cidade && <PreviewRow label="Localização" value={`${data.cidade}${data.estado ? ` - ${data.estado}` : ""}`} />}
+        {data.portfolio && Object.keys(data.portfolio).filter((k) => data.portfolio[k]?.checked).length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 10, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif", marginBottom: 4 }}>Portfólio</div>
+            {PORTFOLIO_ITEMS.filter((p) => data.portfolio?.[p.key]?.checked).map((p) => (
+              <div key={p.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0" }}>
+                <span style={{ color: COLORS.tipCorpo, fontSize: 12, fontFamily: "'Outfit', sans-serif" }}>{p.label}</span>
+                <span style={{ color: COLORS.accentBadge, fontSize: 11, fontFamily: "'Outfit', sans-serif", fontWeight: 600 }}>{data.portfolio[p.key]?.expectativa || "—"}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {etapaInfo && (
+          <div style={{ marginTop: 10, padding: "8px 12px", background: `${etapaInfo.color}18`, borderRadius: 8, border: `1px solid ${etapaInfo.color}40` }}>
+            <div style={{ fontSize: 10, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif" }}>Etapa do Funil</div>
+            <div style={{ fontSize: 13, color: etapaInfo.color, fontWeight: 700, fontFamily: "'Outfit', sans-serif" }}>{etapaInfo.label}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Main App
+export default function SDRFunil() {
+  const [faseAtual, setFaseAtual] = useState(1);
+  const [data, setData] = useState({ portfolio: {} });
+  const [finalizado, setFinalizado] = useState(false);
+  const qi = calcQI(data);
+
+  const canFinish = () => !!data.etapaFunil;
+
+  if (finalizado) {
+    const etapaInfo = ETAPAS_FUNIL.find((e) => e.key === data.etapaFunil);
+    return (
+      <div style={{ minHeight: "100vh", background: COLORS.bgPrincipal, fontFamily: "'Outfit', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');`}</style>
+        <div style={{ textAlign: "center", maxWidth: 500 }}>
+          <div style={{ marginBottom: 20 }}><QIRing score={qi} /></div>
+          <h2 style={{ color: COLORS.tipTitulos, fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Qualificação Finalizada!</h2>
+          <p style={{ color: COLORS.tipLabels, fontSize: 14, marginBottom: 24 }}>Lead <strong style={{ color: COLORS.tipCorpo }}>{data.nomeLead}</strong> encaminhado para <strong style={{ color: etapaInfo?.color }}>{etapaInfo?.label}</strong></p>
+          <div style={{ background: COLORS.bgCards, borderRadius: 16, padding: 24, border: `1px solid ${COLORS.accentBordas}`, textAlign: "left" }}>
+            {data.nomeLead && <PreviewRow label="Lead" value={data.nomeLead} sub={data.cargo} />}
+            {data.nomeConta && <PreviewRow label="Conta" value={data.nomeConta} sub={data.cnpj} />}
+            {data.origem && <PreviewRow label="Origem" value={data.origem} sub={data.origemDetalhe} />}
+            {data.email && <PreviewRow label="E-mail" value={data.email} />}
+            {data.faixaColaboradores && <PreviewRow label="Colaboradores" value={data.faixaColaboradores} />}
+          </div>
+          <button onClick={() => { setFinalizado(false); setData({ portfolio: {} }); setFaseAtual(1); }} style={{ marginTop: 20, padding: "12px 32px", background: COLORS.accentBotao, border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit', sans-serif" }}>Nova Qualificação</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: COLORS.bgPrincipal, fontFamily: "'Outfit', sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: ${COLORS.bgPrincipal}; }
+        ::-webkit-scrollbar-thumb { background: ${COLORS.accentBordas}; border-radius: 3px; }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ background: COLORS.bgNav, borderBottom: `1px solid ${COLORS.accentBordas}`, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Radar8Logo />
+          <div style={{ width: 1, height: 24, background: COLORS.accentBordas, margin: "0 8px" }} />
+          <span style={{ color: COLORS.tipLabels, fontSize: 13, fontWeight: 500, fontFamily: "'Outfit', sans-serif" }}>Funil do SDR</span>
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.tipLabels, fontFamily: "'Outfit', sans-serif" }}>
+          QI: <span style={{ color: qi >= 60 ? COLORS.accentBadge : COLORS.accentLinks, fontWeight: 700 }}>{qi}%</span>
+        </div>
+      </div>
+
+      {/* Progress Steps — ALL clickable, free navigation */}
+      <div style={{ background: COLORS.bgNav, padding: "14px 24px", borderBottom: `1px solid ${COLORS.accentBordas}`, overflowX: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: "fit-content" }}>
+          {FASES.map((fase, i) => {
+            const isActive = faseAtual === fase.id;
+            const isDone = faseAtual > fase.id;
+            return (
+              <div key={fase.id} style={{ display: "flex", alignItems: "center" }}>
+                <button onClick={() => setFaseAtual(fase.id)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: isActive ? `${COLORS.accentPrimario}20` : isDone ? `${COLORS.accentBadge}15` : "transparent", border: `1px solid ${isActive ? COLORS.accentPrimario : isDone ? COLORS.accentBadge + "40" : "transparent"}`, borderRadius: 8, cursor: "pointer", fontFamily: "'Outfit', sans-serif", whiteSpace: "nowrap", opacity: !isDone && !isActive ? 0.6 : 1, transition: "all 0.2s" }}>
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: isDone ? COLORS.accentBadge : isActive ? COLORS.accentPrimario : COLORS.bgHover, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 700 }}>
+                    {isDone ? "✓" : fase.id}
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? COLORS.accentLinks : isDone ? COLORS.accentBadge : COLORS.tipLabels }}>{fase.label}</span>
+                </button>
+                {i < FASES.length - 1 && <div style={{ width: 20, height: 1, background: isDone ? COLORS.accentBadge : COLORS.accentBordas, margin: "0 2px" }} />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div style={{ display: "flex", gap: 24, padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ flex: 1, background: COLORS.bgCards, borderRadius: 16, border: `1px solid ${COLORS.accentBordas}`, padding: 28, animation: "fadeIn 0.3s ease", minHeight: 400 }} key={faseAtual}>
+          {faseAtual === 1 && <FaseOrigem data={data} setData={setData} />}
+          {faseAtual === 2 && <FaseLead data={data} setData={setData} />}
+          {faseAtual === 3 && <FaseConta data={data} setData={setData} />}
+          {faseAtual === 4 && <FasePortfolio data={data} setData={setData} />}
+          {faseAtual === 5 && <FaseVincularCarteira data={data} setData={setData} />}
+          {faseAtual === 6 && <FaseEtapaFunil data={data} setData={setData} />}
+
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28, paddingTop: 20, borderTop: `1px solid ${COLORS.accentBordas}` }}>
+            <button onClick={() => setFaseAtual(Math.max(1, faseAtual - 1))} disabled={faseAtual === 1} style={{ padding: "10px 24px", background: "transparent", border: `1px solid ${faseAtual === 1 ? "transparent" : COLORS.accentBordas}`, borderRadius: 10, color: faseAtual === 1 ? "transparent" : COLORS.tipLabels, fontSize: 14, fontWeight: 600, cursor: faseAtual === 1 ? "default" : "pointer", fontFamily: "'Outfit', sans-serif" }}>← Voltar</button>
+            {faseAtual < 6 ? (
+              <button onClick={() => setFaseAtual(faseAtual + 1)} style={{ padding: "10px 28px", background: COLORS.accentBotao, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit', sans-serif" }}>Próximo →</button>
+            ) : (
+              <button onClick={() => setFinalizado(true)} disabled={!canFinish()} style={{ padding: "10px 28px", background: canFinish() ? COLORS.accentBadge : COLORS.bgHover, border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: canFinish() ? "pointer" : "not-allowed", fontFamily: "'Outfit', sans-serif" }}>✓ Finalizar Qualificação</button>
+            )}
+          </div>
+        </div>
+        <div style={{ width: 280, flexShrink: 0 }}><PreviewPanel data={data} /></div>
+      </div>
+    </div>
+  );
+}
