@@ -94,23 +94,23 @@
       );
     }
 
-    function Logo() {
-      return (
-        <svg width="140" height="36" viewBox="0 0 450 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M0 88V12h30c16 0 26 9 26 22 0 11-7 19-17 22l20 32h-18L24 58H16v30H0zM16 44h12c8 0 13-5 13-11s-5-10-13-10H16v21z" fill="white"/>
-          <path d="M74 88L100 12h12l26 76h-16l-5-18H95l-5 18H74zm24-30h20l-10-36-10 36z" fill="white"/>
-          <path d="M150 88V12h24c24 0 40 16 40 38s-16 38-40 38h-24zm16-14h8c16 0 24-10 24-24s-8-24-24-24h-8v48z" fill="white"/>
-          <path d="M234 88L260 12h12l26 76h-16l-5-18h-22l-5 18h-16zm24-30h20l-10-36-10 36z" fill="white"/>
-          <path d="M320 88V12h30c16 0 26 9 26 22 0 11-7 19-17 22l20 32h-18l-17-30h-8v30h-16zm16-44h12c8 0 13-5 13-11s-5-10-13-10h-12v21z" fill="white"/>
-          <circle cx="400" cy="50" r="30" fill="#4DD9FF"/>
-          <path d="M426 24c10 10 16 22 16 26" stroke="#4DD9FF" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.6"/>
-          <path d="M430 18c14 14 20 28 20 32" stroke="#4DD9FF" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.35"/>
-          <path d="M426 76c10-10 16-22 16-26" stroke="#4DD9FF" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.6"/>
-          <path d="M430 82c14-14 20-28 20-32" stroke="#4DD9FF" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.35"/>
-          <text x="400" y="62" textAnchor="middle" fontSize="42" fontWeight="900" fontFamily="'Outfit', sans-serif" fill="#0D1520">8</text>
+   function Logo() {
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:6}}>
+      <span style={{color:"#FFFFFF",fontSize:24,fontWeight:800,letterSpacing:8,fontFamily:"'Outfit', sans-serif",lineHeight:1}}>RADAR</span>
+      <div style={{position:"relative",width:36,height:36}}>
+        <svg width="36" height="36" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="38" cy="40" r="30" fill="#4DD9FF"/>
+          <path d="M64 14c8 8 14 20 14 26" stroke="#4DD9FF" strokeWidth="2.8" fill="none" strokeLinecap="round" opacity="0.55"/>
+          <path d="M68 8c12 12 18 26 18 32" stroke="#4DD9FF" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.3"/>
+          <path d="M64 66c8-8 14-20 14-26" stroke="#4DD9FF" strokeWidth="2.8" fill="none" strokeLinecap="round" opacity="0.55"/>
+          <path d="M68 72c12-12 18-26 18-32" stroke="#4DD9FF" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.3"/>
         </svg>
-      );
-    }
+        <span style={{position:"absolute",top:"50%",left:"42%",transform:"translate(-50%,-50%)",fontSize:22,fontWeight:900,color:"#0D1520",fontFamily:"'Outfit', sans-serif",lineHeight:1}}>8</span>
+      </div>
+    </div>
+  );
+}
 
     function AIBtn({onClick}) {
       return (
