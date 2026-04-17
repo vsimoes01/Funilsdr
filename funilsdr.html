@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Radar 8 — Funil do SDR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', sans-serif; background: #0D1520; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0D1520; }
+    ::-webkit-scrollbar-thumb { background: #1E3250; border-radius: 3px; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState } = React;
+
+    const C = {
+      bgP: "#0D1520", bgN: "#111B2B", bgC: "#162032", bgL: "#1C2A3E",
+      bgH: "#253349", bgI: "#0F1C2D", aP: "#1A6CFF", aB: "#1560E8",
+      aLk: "#4D9FFF", aBd: "#00C853", aN: "#E53935", aBo: "#1E3250",
+      tT: "#FFFFFF", tC: "#E2EAF4", tL: "#7A90AA", tCb: "#5B7490",
+    };
+
+    const FASES = [
+      { id: 1, label: "Origem" }, { id: 2, label: "Lead" },
+      { id: 3, label: "Conta" }, { id: 4, label: "Portfólio & QI" },
+      { id: 5, label: "Vincular Carteira" }, { id: 6, label: "Etapa do Funil" },
+    ];
+
+    const ORIGENS = ["Forms de Cotações","Fale conosco - Site","Telefone 0800","Instagram","LinkedIn","Outros Canais"];
+    const EMOJIS = {"Forms de Cotações":"📋","Fale conosco - Site":"🌐","Telefone 0800":"📞","Instagram":"📸","LinkedIn":"💼","Outros Canais":"📬"};
+
+    const PORT = [
+      { key: "uniProf", label: "Uniformes Profissionais", meta: "1000 peças" },
+      { key: "uniCorp", label: "Uniformes Corporativos", meta: "200 peças" },
+      { key: "vestProt", label: "Vestimentas de Proteção", meta: "200 peças" },
+      { key: "epis", label: "EPI's", meta: "Variado" },
+      { key: "revenda", label: "Revenda", meta: "Variado" },
+    ];
+
+    const ETAPAS = [
+      { key: "dados_iniciais", label: "Dados Iniciais", color: "#1A6CFF" },
+      { key: "primeiro_contato", label: "Primeiro Contato", color: "#4D9FFF" },
+      { key: "segundo_contato", label: "Segundo Contato", color: "#00C853" },
+      { key: "enriquecimento", label: "Enriquecimento de Dados", color: "#FF9800" },
+      { key: "destino", label: "Destino", color: "#E53935" },
+    ];
+
+    function calcQI(d) {
+      let s=0, t=0;
+      t+=10; if(d.origem) s+=10;
+      t+=30; if(d.nomeLead) s+=6; if(d.cargo) s+=5; if(d.email) s+=5;
+      if(d.fone||d.celular) s+=5; if(d.origemDetalhe) s+=4; if(d.salesNavigatorLead) s+=5;
+      t+=30; if(d.nomeConta) s+=8; if(d.cnpj) s+=8; if(d.companyPage) s+=4;
+      if(d.faixaColaboradores) s+=5; if(d.salesNavigatorConta) s+=5;
+      t+=20; const pc=PORT.filter(p=>d.portfolio&&d.portfolio[p.key]&&d.portfolio[p.key].checked).length;
+      s+=Math.min(20,pc*5);
+      t+=10; if(d.etapaFunil) s+=10;
+      return Math.round((s/t)*100);
+    }
+
+    const ff = "'Outfit', sans-serif";
+    const lbl = {display:"block",fontSize:11,fontWeight:600,color:C.tL,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.5px",fontFamily:ff};
+    const inp = {width:"100%",padding:"10px 14px",background:C.bgI,border:`1px solid ${C.aBo}`,borderRadius:8,color:C.tC,fontSize:14,fontFamily:ff,outline:"none",transition:"border-color 0.2s",boxSizing:"border-box"};
+
+    function Inp({label,value,onChange,placeholder,type="text"}) {
+      return React.createElement("div",{style:{marginBottom:14}},
+        React.createElement("label",{style:lbl},label),
+        React.createElement("input",{type,value:value||"",onChange:e=>onChange(e.target.value),placeholder:placeholder||"",style:inp,
+          onFocus:e=>{e.target.style.borderColor=C.aP},onBlur:e=>{e.target.style.borderColor=C.aBo}})
+      );
+    }
+
+    function Sel({label,value,onChange,options,placeholder}) {
+      return React.createElement("div",{style:{marginBottom:14}},
+        React.createElement("label",{style:lbl},label),
+        React.createElement("select",{value:value||"",onChange:e=>onChange(e.target.value),
+          style:{...inp,cursor:"pointer",appearance:"none",color:value?C.tC:C.tL,
+            backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237A90AA' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+            backgroundRepeat:"no-repeat",backgroundPosition:"right 12px center"}},
+          React.createElement("option",{value:"",style:{color:C.tL}},placeholder||"Selecionar..."),
+          options.map(o=>React.createElement("option",{key:o,value:o,style:{color:C.tC,background:C.bgC}},o))
+        )
+      );
+    }
+
+    function Logo() {
+      return (
+        <svg width="140" height="36" viewBox="0 0 450 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0 88V12h30c16 0 26 9 26 22 0 11-7 19-17 22l20 32h-18L24 58H16v30H0zM16 44h12c8 0 13-5 13-11s-5-10-13-10H16v21z" fill="white"/>
+          <path d="M74 88L100 12h12l26 76h-16l-5-18H95l-5 18H74zm24-30h20l-10-36-10 36z" fill="white"/>
+          <path d="M150 88V12h24c24 0 40 16 40 38s-16 38-40 38h-24zm16-14h8c16 0 24-10 24-24s-8-24-24-24h-8v48z" fill="white"/>
+          <path d="M234 88L260 12h12l26 76h-16l-5-18h-22l-5 18h-16zm24-30h20l-10-36-10 36z" fill="white"/>
+          <path d="M320 88V12h30c16 0 26 9 26 22 0 11-7 19-17 22l20 32h-18l-17-30h-8v30h-16zm16-44h12c8 0 13-5 13-11s-5-10-13-10h-12v21z" fill="white"/>
+          <circle cx="400" cy="50" r="30" fill="#4DD9FF"/>
+          <path d="M426 24c10 10 16 22 16 26" stroke="#4DD9FF" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.6"/>
+          <path d="M430 18c14 14 20 28 20 32" stroke="#4DD9FF" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.35"/>
+          <path d="M426 76c10-10 16-22 16-26" stroke="#4DD9FF" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.6"/>
+          <path d="M430 82c14-14 20-28 20-32" stroke="#4DD9FF" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.35"/>
+          <text x="400" y="62" textAnchor="middle" fontSize="42" fontWeight="900" fontFamily="'Outfit', sans-serif" fill="#0D1520">8</text>
+        </svg>
+      );
+    }
+
+    function AIBtn({onClick}) {
+      return (
+        <div onClick={onClick} style={{cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:8,background:"linear-gradient(135deg, #1A6CFF 0%, #4D9FFF 50%, #00C853 100%)",boxShadow:"0 0 12px rgba(26,108,255,0.3)",transition:"transform 0.2s"}}
+          onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.12)"}}
+          onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)"}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="white"/>
+            <path d="M19 2L19.8 4.2L22 5L19.8 5.8L19 8L18.2 5.8L16 5L18.2 4.2L19 2Z" fill="white" opacity="0.6"/>
+          </svg>
+        </div>
+      );
+    }
+
+    function QIRing({score}) {
+      const circ = 2*Math.PI*42;
+      const off = circ-(score/100)*circ;
+      const col = score<30?C.aN:score<60?"#FF9800":score<85?C.aP:C.aBd;
+      return (
+        <div style={{position:"relative",width:100,height:100,margin:"0 auto"}}>
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke={C.aBo} strokeWidth="6"/>
+            <circle cx="50" cy="50" r="42" fill="none" stroke={col} strokeWidth="6"
+              strokeDasharray={circ} strokeDashoffset={off} strokeLinecap="round"
+              transform="rotate(-90 50 50)" style={{transition:"stroke-dashoffset 0.6s ease, stroke 0.3s ease"}}/>
+          </svg>
+          <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+            <div style={{fontSize:24,fontWeight:800,color:col,fontFamily:ff,lineHeight:1}}>{score}</div>
+            <div style={{fontSize:10,color:C.tL,fontFamily:ff}}>QI</div>
+          </div>
+        </div>
+      );
+    }
+
+    function PRow({label,value,sub,isLink}) {
+      return (
+        <div style={{marginBottom:8}}>
+          <div style={{fontSize:10,color:C.tL,fontFamily:ff}}>{label}</div>
+          <div style={{fontSize:13,color:isLink?C.aLk:C.tC,fontWeight:600,fontFamily:ff,wordBreak:"break-all"}}>{value}</div>
+          {sub && <div style={{fontSize:11,color:C.tL,fontFamily:ff}}>{sub}</div>}
+        </div>
+      );
+    }
+
+    // ── PHASES ──
+    function F1({data:d,setData:sd}) {
+      return (
+        <div>
+          <h3 style={{color:C.tT,fontSize:18,fontWeight:700,marginBottom:6,fontFamily:ff}}>📡 Origem do Lead</h3>
+          <p style={{color:C.tL,fontSize:13,marginBottom:20,fontFamily:ff}}>Como esse lead chegou até nós?</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+            {ORIGENS.map(o=>(
+              <button key={o} onClick={()=>sd({...d,origem:o,origemDetalhe:""})}
+                style={{padding:"14px 16px",background:d.origem===o?C.aP:C.bgI,border:`1px solid ${d.origem===o?C.aP:C.aBo}`,borderRadius:10,color:d.origem===o?"#fff":C.tC,fontSize:13,fontWeight:d.origem===o?700:500,cursor:"pointer",transition:"all 0.2s",fontFamily:ff,textAlign:"left"}}>
+                {EMOJIS[o]+" "}{o}
+              </button>
+            ))}
+          </div>
+          {d.origem==="Instagram"&&<div style={{animation:"fadeIn 0.3s ease"}}><Inp label="@ do Instagram" value={d.origemDetalhe} onChange={v=>sd({...d,origemDetalhe:v})} placeholder="@empresa"/></div>}
+          {d.origem==="LinkedIn"&&<div style={{animation:"fadeIn 0.3s ease"}}><Inp label="URL do Perfil LinkedIn" value={d.origemDetalhe} onChange={v=>sd({...d,origemDetalhe:v})} placeholder="https://linkedin.com/in/..."/></div>}
+          {d.origem==="Telefone 0800"&&<div style={{animation:"fadeIn 0.3s ease"}}><Inp label="Número que ligou" value={d.origemDetalhe} onChange={v=>sd({...d,origemDetalhe:v})} placeholder="(00) 00000-0000"/></div>}
+          {(d.origem==="Fale conosco - Site"||d.origem==="Forms de Cotações")&&<div style={{animation:"fadeIn 0.3s ease"}}><Inp label="Referência do formulário" value={d.origemDetalhe} onChange={v=>sd({...d,origemDetalhe:v})} placeholder="Página ou formulário específico"/></div>}
+          {d.origem==="Outros Canais"&&<div style={{animation:"fadeIn 0.3s ease"}}><Inp label="Qual canal?" value={d.origemDetalhe} onChange={v=>sd({...d,origemDetalhe:v})} placeholder="Descreva o canal de origem"/></div>}
+        </div>
+      );
+    }
+
+    function F2({data:d,setData:sd}) {
+      const ns=d.origem==="LinkedIn";
+      return (
+        <div>
+          <h3 style={{color:C.tT,fontSize:18,fontWeight:700,marginBottom:6,fontFamily:ff}}>👤 Dados do Lead</h3>
+          <p style={{color:C.tL,fontSize:13,marginBottom:20,fontFamily:ff}}>Informações de contato e perfil do lead.</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
+            <Inp label="Nome do Lead" value={d.nomeLead} onChange={v=>sd({...d,nomeLead:v})} placeholder="Nome completo"/>
+            <Inp label="Cargo" value={d.cargo} onChange={v=>sd({...d,cargo:v})} placeholder="Ex: Gerente de Compras"/>
+            <Inp label="E-mail" value={d.email} onChange={v=>sd({...d,email:v})} placeholder="email@empresa.com" type="email"/>
+            <Inp label="Telefone" value={d.fone} onChange={v=>sd({...d,fone:v})} placeholder="(00) 0000-0000"/>
+            <Inp label="Celular" value={d.celular} onChange={v=>sd({...d,celular:v})} placeholder="(00) 00000-0000"/>
+            {d.origem==="Instagram"&&<Inp label="Instagram do Lead" value={d.instagramLead} onChange={v=>sd({...d,instagramLead:v})} placeholder="@perfil"/>}
+          </div>
+          {ns&&<div style={{marginTop:12,padding:16,background:C.bgL,borderRadius:10,border:`1px solid ${C.aBo}`}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.aLk,marginBottom:12,fontFamily:ff,textTransform:"uppercase",letterSpacing:"0.5px"}}>💼 Sales Navigator — Lead</div>
+            <Inp label="Link Sales Navigator do Lead" value={d.salesNavigatorLead} onChange={v=>sd({...d,salesNavigatorLead:v})} placeholder="https://www.linkedin.com/sales/lead/..."/>
+          </div>}
+        </div>
+      );
+    }
+
+    function F3({data:d,setData:sd}) {
+      const ns=d.origem==="LinkedIn";
+      return (
+        <div>
+          <h3 style={{color:C.tT,fontSize:18,fontWeight:700,marginBottom:6,fontFamily:ff}}>🏢 Dados da Conta</h3>
+          <p style={{color:C.tL,fontSize:13,marginBottom:20,fontFamily:ff}}>Informações da empresa / conta do lead.</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
+            <Inp label="Nome da Conta" value={d.nomeConta} onChange={v=>sd({...d,nomeConta:v})} placeholder="Razão Social ou Fantasia"/>
+            <Inp label="CNPJ" value={d.cnpj} onChange={v=>sd({...d,cnpj:v})} placeholder="00.000.000/0000-00"/>
+            <Inp label="Company Page" value={d.companyPage} onChange={v=>sd({...d,companyPage:v})} placeholder="URL da página"/>
+            <Inp label="Instagram da Empresa" value={d.instagramConta} onChange={v=>sd({...d,instagramConta:v})} placeholder="@empresa"/>
+            <Inp label="YouTube" value={d.youtube} onChange={v=>sd({...d,youtube:v})} placeholder="URL do canal"/>
+            <Sel label="Faixa de Colaboradores" value={d.faixaColaboradores} onChange={v=>sd({...d,faixaColaboradores:v})} options={["1-50","51-200","201-500","501-1000","1001-5000","5000+"]} placeholder="Selecionar faixa..."/>
+            <Inp label="Cidade" value={d.cidade} onChange={v=>sd({...d,cidade:v})} placeholder="Cidade"/>
+            <Inp label="Estado" value={d.estado} onChange={v=>sd({...d,estado:v})} placeholder="UF"/>
+          </div>
+          {ns&&<div style={{marginTop:12,padding:16,background:C.bgL,borderRadius:10,border:`1px solid ${C.aBo}`}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.aLk,marginBottom:12,fontFamily:ff,textTransform:"uppercase",letterSpacing:"0.5px"}}>💼 Sales Navigator — Conta</div>
+            <Inp label="Link Sales Navigator da Conta" value={d.salesNavigatorConta} onChange={v=>sd({...d,salesNavigatorConta:v})} placeholder="https://www.linkedin.com/sales/company/..."/>
+          </div>}
+        </div>
+      );
+    }
+
+    function F4({data:d,setData:sd}) {
+      const p=d.portfolio||{};
+      const tog=k=>{const u={...p};if(!u[k])u[k]={checked:false,expectativa:""};u[k]={...u[k],checked:!u[k].checked};sd({...d,portfolio:u});};
+      const setE=(k,v)=>{const u={...p};if(!u[k])u[k]={checked:true,expectativa:""};u[k]={...u[k],expectativa:v};sd({...d,portfolio:u});};
+      return (
+        <div>
+          <h3 style={{color:C.tT,fontSize:18,fontWeight:700,marginBottom:6,fontFamily:ff}}>📊 Portfólio & QI-Score</h3>
+          <p style={{color:C.tL,fontSize:13,marginBottom:20,fontFamily:ff}}>Selecione os itens do portfólio e a expectativa de consumo anual.</p>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {PORT.map(item=>{
+              const ic=p[item.key]&&p[item.key].checked;
+              return (
+                <div key={item.key} style={{background:ic?C.bgL:C.bgI,border:`1px solid ${ic?C.aP:C.aBo}`,borderRadius:10,padding:"12px 16px",transition:"all 0.2s"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <div onClick={()=>tog(item.key)} style={{width:22,height:22,borderRadius:6,border:`2px solid ${ic?C.aBd:C.aBo}`,background:ic?C.aBd:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s",flexShrink:0}}>
+                      {ic&&<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <div style={{flex:1}}>
+                      <div style={{color:C.tC,fontSize:14,fontWeight:600,fontFamily:ff}}>{item.label}</div>
+                      <div style={{color:C.tL,fontSize:11,fontFamily:ff}}>{item.meta}</div>
+                    </div>
+                    {ic&&<div style={{width:140}}><input type="number" placeholder="Qtd. anual" value={(p[item.key]&&p[item.key].expectativa)||""} onChange={e=>setE(item.key,e.target.value)} style={{width:"100%",padding:"6px 10px",background:C.bgI,border:`1px solid ${C.aBo}`,borderRadius:6,color:C.tC,fontSize:13,fontFamily:ff,outline:"none",boxSizing:"border-box"}}/></div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function F5({data:d,setData:sd}) {
+      const [bt,setBt]=useState("cnpj");
+      const [bv,setBv]=useState("");
+      const [res,setRes]=useState(null);
+      const [loading,setLoading]=useState(false);
+      const buscar=()=>{setLoading(true);setTimeout(()=>{if(bv.length>3){setRes({found:Math.random()>0.5,rep:"Carlos Mendes",cart:"Carteira SP Interior",st:"Ativo"});}else{setRes({found:false});}setLoading(false);},1200);};
+      return (
+        <div>
+          <h3 style={{color:C.tT,fontSize:18,fontWeight:700,marginBottom:6,fontFamily:ff}}>🔗 Vincular Carteira</h3>
+          <p style={{color:C.tL,fontSize:13,marginBottom:20,fontFamily:ff}}>Pesquise se a empresa já está cadastrada e vincule o lead a uma carteira com representante existente.</p>
+          <div style={{display:"flex",gap:10,marginBottom:16}}>
+            {[{k:"cnpj",l:"Por CNPJ"},{k:"referencia",l:"Por Referência"}].map(t=>(
+              <button key={t.k} onClick={()=>{setBt(t.k);setRes(null);setBv("");}} style={{padding:"10px 20px",background:bt===t.k?C.aP:C.bgI,border:`1px solid ${bt===t.k?C.aP:C.aBo}`,borderRadius:8,color:bt===t.k?"#fff":C.tC,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:ff}}>{t.l}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
+            <div style={{flex:1}}><Inp label={bt==="cnpj"?"CNPJ da Empresa":"Nome / Referência"} value={bv} onChange={setBv} placeholder={bt==="cnpj"?"00.000.000/0000-00":"Nome fantasia ou código"}/></div>
+            <button onClick={buscar} disabled={loading||bv.length<3} style={{padding:"10px 24px",background:loading||bv.length<3?C.bgH:C.aB,border:"none",borderRadius:8,color:"#fff",fontSize:14,fontWeight:700,cursor:loading||bv.length<3?"not-allowed":"pointer",fontFamily:ff,marginBottom:14,height:42,whiteSpace:"nowrap"}}>{loading?"Buscando...":"Consultar"}</button>
+          </div>
+          {res&&<div style={{marginTop:8,padding:16,background:res.found?"rgba(0,200,83,0.08)":"rgba(229,57,53,0.08)",border:`1px solid ${res.found?C.aBd:C.aN}`,borderRadius:10,animation:"fadeIn 0.3s ease"}}>
+            {res.found?(
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <div style={{width:10,height:10,borderRadius:"50%",background:C.aBd}}/>
+                  <span style={{color:C.aBd,fontWeight:700,fontSize:14,fontFamily:ff}}>Empresa encontrada — Representante vinculado</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+                  <div><div style={{fontSize:11,color:C.tL,fontFamily:ff}}>Representante</div><div style={{fontSize:14,color:C.tC,fontWeight:600,fontFamily:ff}}>{res.rep}</div></div>
+                  <div><div style={{fontSize:11,color:C.tL,fontFamily:ff}}>Carteira</div><div style={{fontSize:14,color:C.tC,fontWeight:600,fontFamily:ff}}>{res.cart}</div></div>
+                  <div><div style={{fontSize:11,color:C.tL,fontFamily:ff}}>Status</div><div style={{fontSize:14,color:C.aBd,fontWeight:600,fontFamily:ff}}>{res.st}</div></div>
+                </div>
+              </div>
+            ):(
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:C.aN}}/>
+                <span style={{color:C.aN,fontWeight:700,fontSize:14,fontFamily:ff}}>Nenhum registro encontrado — Lead sem carteira vinculada</span>
+              </div>
+            )}
+          </div>}
+        </div>
+      );
+    }
+
+    function F6({data:d,setData:sd}) {
+      return (
+        <div>
+          <h3 style={{color:C.tT,fontSize:18,fontWeight:700,marginBottom:6,fontFamily:ff}}>🎯 Etapa do Funil</h3>
+          <p style={{color:C.tL,fontSize:13,marginBottom:20,fontFamily:ff}}>Para qual etapa do funil este lead será encaminhado?</p>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {ETAPAS.map(et=>(
+              <button key={et.key} onClick={()=>sd({...d,etapaFunil:et.key})} style={{display:"flex",alignItems:"center",gap:14,padding:"16px 18px",background:d.etapaFunil===et.key?`${et.color}18`:C.bgI,border:`2px solid ${d.etapaFunil===et.key?et.color:C.aBo}`,borderRadius:12,cursor:"pointer",transition:"all 0.2s",textAlign:"left"}}>
+                <div style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${d.etapaFunil===et.key?et.color:C.tL}`,background:d.etapaFunil===et.key?et.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.2s"}}>
+                  {d.etapaFunil===et.key&&<div style={{width:6,height:6,borderRadius:"50%",background:"#fff"}}/>}
+                </div>
+                <div style={{color:d.etapaFunil===et.key?et.color:C.tC,fontSize:15,fontWeight:700,fontFamily:ff}}>{et.label}</div>
+              </button>
+            ))}
+          </div>
+          {d.etapaFunil&&<div style={{marginTop:16}}><Inp label="Observações sobre o encaminhamento" value={d.obsEtapa} onChange={v=>sd({...d,obsEtapa:v})} placeholder="Notas para a próxima etapa..."/></div>}
+        </div>
+      );
+    }
+
+    function Preview({data:d}) {
+      const qi=calcQI(d);
+      const ei=ETAPAS.find(e=>e.key===d.etapaFunil);
+      const [showAI,setShowAI]=useState(false);
+      return (
+        <div style={{background:C.bgC,borderRadius:16,border:`1px solid ${C.aBo}`,padding:20,height:"fit-content",position:"sticky",top:20}}>
+          <div style={{textAlign:"center",marginBottom:16}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:12}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.tL,textTransform:"uppercase",letterSpacing:1,fontFamily:ff}}>QI da Qualificação</div>
+              <AIBtn onClick={()=>setShowAI(!showAI)}/>
+            </div>
+            <QIRing score={qi}/>
+            {showAI&&<div style={{marginTop:12,padding:14,background:"linear-gradient(135deg, rgba(26,108,255,0.12) 0%, rgba(0,200,83,0.08) 100%)",border:`1px solid ${C.aP}40`,borderRadius:10,animation:"fadeIn 0.3s ease",position:"relative"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill={C.aLk}/></svg>
+                <span style={{fontSize:11,fontWeight:700,color:C.aLk,fontFamily:ff,textTransform:"uppercase",letterSpacing:"0.5px"}}>Inteligência Artificial</span>
+              </div>
+              <p style={{fontSize:12,color:C.tC,fontFamily:ff,lineHeight:1.5,margin:0,textAlign:"left"}}>Aqui será gerado informações complementares sugestivas de prospecção e segmento que o Lead poderá ser destinado.</p>
+              <button onClick={()=>setShowAI(false)} style={{position:"absolute",top:8,right:10,background:"none",border:"none",color:C.tL,cursor:"pointer",fontSize:14,fontFamily:ff,padding:0,lineHeight:1}}>×</button>
+            </div>}
+          </div>
+          <div style={{borderTop:`1px solid ${C.aBo}`,paddingTop:14,marginTop:8}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.tL,textTransform:"uppercase",marginBottom:10,fontFamily:ff}}>Prévia</div>
+            {d.origem&&<PRow label="Origem" value={d.origem} sub={d.origemDetalhe}/>}
+            {d.nomeLead&&<PRow label="Lead" value={d.nomeLead} sub={d.cargo}/>}
+            {d.email&&<PRow label="E-mail" value={d.email}/>}
+            {(d.fone||d.celular)&&<PRow label="Telefone" value={d.fone||d.celular}/>}
+            {d.instagramLead&&<PRow label="Instagram Lead" value={d.instagramLead}/>}
+            {d.salesNavigatorLead&&<PRow label="Sales Nav. Lead" value="✓ Vinculado" isLink/>}
+            {d.nomeConta&&<PRow label="Conta" value={d.nomeConta} sub={d.cnpj}/>}
+            {d.faixaColaboradores&&<PRow label="Colaboradores" value={d.faixaColaboradores}/>}
+            {d.salesNavigatorConta&&<PRow label="Sales Nav. Conta" value="✓ Vinculado" isLink/>}
+            {d.cidade&&<PRow label="Localização" value={`${d.cidade}${d.estado?` - ${d.estado}`:""}`}/>}
+            {d.portfolio&&Object.keys(d.portfolio).filter(k=>d.portfolio[k]&&d.portfolio[k].checked).length>0&&(
+              <div style={{marginTop:8}}>
+                <div style={{fontSize:10,color:C.tL,fontFamily:ff,marginBottom:4}}>Portfólio</div>
+                {PORT.filter(p=>d.portfolio&&d.portfolio[p.key]&&d.portfolio[p.key].checked).map(p=>(
+                  <div key={p.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"3px 0"}}>
+                    <span style={{color:C.tC,fontSize:12,fontFamily:ff}}>{p.label}</span>
+                    <span style={{color:C.aBd,fontSize:11,fontFamily:ff,fontWeight:600}}>{(d.portfolio[p.key]&&d.portfolio[p.key].expectativa)||"—"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {ei&&<div style={{marginTop:10,padding:"8px 12px",background:`${ei.color}18`,borderRadius:8,border:`1px solid ${ei.color}40`}}>
+              <div style={{fontSize:10,color:C.tL,fontFamily:ff}}>Etapa do Funil</div>
+              <div style={{fontSize:13,color:ei.color,fontWeight:700,fontFamily:ff}}>{ei.label}</div>
+            </div>}
+          </div>
+        </div>
+      );
+    }
+
+    // ── APP ──
+    function App() {
+      const [fase,setFase]=useState(1);
+      const [data,setData]=useState({portfolio:{}});
+      const [done,setDone]=useState(false);
+      const qi=calcQI(data);
+
+      if(done) {
+        const ei=ETAPAS.find(e=>e.key===data.etapaFunil);
+        return (
+          <div style={{minHeight:"100vh",background:C.bgP,fontFamily:ff,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+            <div style={{textAlign:"center",maxWidth:500}}>
+              <div style={{marginBottom:20}}><QIRing score={qi}/></div>
+              <h2 style={{color:C.tT,fontSize:24,fontWeight:800,marginBottom:8}}>Qualificação Finalizada!</h2>
+              <p style={{color:C.tL,fontSize:14,marginBottom:24}}>Lead <strong style={{color:C.tC}}>{data.nomeLead}</strong> encaminhado para <strong style={{color:ei&&ei.color}}>{ei&&ei.label}</strong></p>
+              <div style={{background:C.bgC,borderRadius:16,padding:24,border:`1px solid ${C.aBo}`,textAlign:"left"}}>
+                {data.nomeLead&&<PRow label="Lead" value={data.nomeLead} sub={data.cargo}/>}
+                {data.nomeConta&&<PRow label="Conta" value={data.nomeConta} sub={data.cnpj}/>}
+                {data.origem&&<PRow label="Origem" value={data.origem} sub={data.origemDetalhe}/>}
+                {data.email&&<PRow label="E-mail" value={data.email}/>}
+                {data.faixaColaboradores&&<PRow label="Colaboradores" value={data.faixaColaboradores}/>}
+              </div>
+              <button onClick={()=>{setDone(false);setData({portfolio:{}});setFase(1);}} style={{marginTop:20,padding:"12px 32px",background:C.aB,border:"none",borderRadius:10,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:ff}}>Nova Qualificação</button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={{minHeight:"100vh",background:C.bgP,fontFamily:ff}}>
+          {/* Header */}
+          <div style={{background:C.bgN,borderBottom:`1px solid ${C.aBo}`,padding:"12px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <Logo/>
+              <div style={{width:1,height:24,background:C.aBo,margin:"0 8px"}}/>
+              <span style={{color:C.tL,fontSize:13,fontWeight:500,fontFamily:ff}}>Funil do SDR</span>
+            </div>
+            <div style={{fontSize:12,color:C.tL,fontFamily:ff}}>QI: <span style={{color:qi>=60?C.aBd:C.aLk,fontWeight:700}}>{qi}%</span></div>
+          </div>
+
+          {/* Steps — all clickable */}
+          <div style={{background:C.bgN,padding:"14px 24px",borderBottom:`1px solid ${C.aBo}`,overflowX:"auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:4,minWidth:"fit-content"}}>
+              {FASES.map((f,i)=>{
+                const act=fase===f.id, dn=fase>f.id;
+                return (
+                  <div key={f.id} style={{display:"flex",alignItems:"center"}}>
+                    <button onClick={()=>setFase(f.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",background:act?`${C.aP}20`:dn?`${C.aBd}15`:"transparent",border:`1px solid ${act?C.aP:dn?C.aBd+"40":"transparent"}`,borderRadius:8,cursor:"pointer",fontFamily:ff,whiteSpace:"nowrap",opacity:!dn&&!act?0.6:1,transition:"all 0.2s"}}>
+                      <div style={{width:22,height:22,borderRadius:"50%",background:dn?C.aBd:act?C.aP:C.bgH,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700}}>{dn?"✓":f.id}</div>
+                      <span style={{fontSize:12,fontWeight:act?700:500,color:act?C.aLk:dn?C.aBd:C.tL}}>{f.label}</span>
+                    </button>
+                    {i<FASES.length-1&&<div style={{width:20,height:1,background:dn?C.aBd:C.aBo,margin:"0 2px"}}/>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Main */}
+          <div style={{display:"flex",gap:24,padding:24,maxWidth:1200,margin:"0 auto"}}>
+            <div key={fase} style={{flex:1,background:C.bgC,borderRadius:16,border:`1px solid ${C.aBo}`,padding:28,animation:"fadeIn 0.3s ease",minHeight:400}}>
+              {fase===1&&<F1 data={data} setData={setData}/>}
+              {fase===2&&<F2 data={data} setData={setData}/>}
+              {fase===3&&<F3 data={data} setData={setData}/>}
+              {fase===4&&<F4 data={data} setData={setData}/>}
+              {fase===5&&<F5 data={data} setData={setData}/>}
+              {fase===6&&<F6 data={data} setData={setData}/>}
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:28,paddingTop:20,borderTop:`1px solid ${C.aBo}`}}>
+                <button onClick={()=>setFase(Math.max(1,fase-1))} disabled={fase===1} style={{padding:"10px 24px",background:"transparent",border:`1px solid ${fase===1?"transparent":C.aBo}`,borderRadius:10,color:fase===1?"transparent":C.tL,fontSize:14,fontWeight:600,cursor:fase===1?"default":"pointer",fontFamily:ff}}>← Voltar</button>
+                {fase<6?(
+                  <button onClick={()=>setFase(fase+1)} style={{padding:"10px 28px",background:C.aB,border:"none",borderRadius:10,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:ff}}>Próximo →</button>
+                ):(
+                  <button onClick={()=>setDone(true)} disabled={!data.etapaFunil} style={{padding:"10px 28px",background:data.etapaFunil?C.aBd:C.bgH,border:"none",borderRadius:10,color:"#fff",fontSize:14,fontWeight:700,cursor:data.etapaFunil?"pointer":"not-allowed",fontFamily:ff}}>✓ Finalizar Qualificação</button>
+                )}
+              </div>
+            </div>
+            <div style={{width:280,flexShrink:0}}><Preview data={data}/></div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
